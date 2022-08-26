@@ -1,14 +1,16 @@
 #!/usr/bin/python3
 
 from urllib.request import Request
-import requests, sys, argparse, os
+import requests, sys, argparse, os, time, threading
 from bs4 import BeautifulSoup
 from os.path import exists, isdir, basename, splitext
 from urllib.parse import urlparse
 
 allowed_ext = ['.jpg','.jpeg','.png','.gif','.bmp']
 allowed_scheme = ['http']
+
 url_log = set()
+url_log_lock = threading.Lock()
 
 def parse_args() -> str:
     parser = argparse.ArgumentParser(prog='spider.py', description='** Get-IP-banned utility **')
@@ -36,8 +38,10 @@ def parse_args() -> str:
 def generate_url(url: str, domain: str) -> str:
     if url.startswith('//'):
         url = 'https:' + url
-    if url.startswith('/'):
+    elif url.startswith('/'):
         url = domain + url
+    elif not url.startswith('http'):
+        url = domain + '/' + url
     return url
 
 def img_name_generator(img_url: str) -> str:
@@ -55,29 +59,39 @@ def img_name_generator(img_url: str) -> str:
             return download_path + new_name + name_s[1]
     raise Exception('Not valid ext.: ' + name_s[1])
 
-def scrap_imgs_from_page(req: Request, root: str):
-    imgs = BeautifulSoup(req.text, 'lxml').find_all('img')
-    for img in imgs:
-        try:
-            img_url = img['src']
-            if not img_url:
-                continue
-            img_url = generate_url(img_url, root)
+def request_img(img: str, root: str):
+    try:
+        img_url = img['src']
+        if not img_url:
+            sys.exit(0)
+        img_url = generate_url(img_url, root)
+        with url_log_lock:
             if img_url in url_log:
-                continue
+                sys.exit(0)
             url_log.add(img_url)
-            img_req = requests.get(img_url, verify=True, timeout=5)
-            if img_req.status_code != 200:
-                continue
-            img_name = img_name_generator(img_url)
-            with open(img_name, 'wb+') as f:
-                f.write(img_req.content)
-        except MemoryError:
-            print('No space left on device', sys.stderr)
-            sys.exit(1)
-        except Exception:
-            continue
+        img_req = requests.get(img_url, verify=True, timeout=5)
+        if img_req.status_code != 200:
+            sys.exit(0)
+        img_name = img_name_generator(img_url)
+        with open(img_name, 'wb+') as f:
+            f.write(img_req.content)
+    except MemoryError:
+        print('No space left on device', sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(e)
+        sys.exit(1)
 
+def scrap_request(req: Request, root: str):
+    imgs = BeautifulSoup(req.text, 'lxml').find_all('img')
+    img_threads = []
+    for img in imgs:
+        thr = threading.Thread(target=request_img, args=[img, root])
+        thr.start()
+        img_threads.append(thr)
+    for thread in img_threads:
+        thread.join()
+        
 def petition_layer(url: str, l: int):
     l += 1
     print(f'Scrapping url {url} [ recursion level {str(l)} ]')
@@ -89,7 +103,7 @@ def petition_layer(url: str, l: int):
     except Exception:
         print(f'Failed to request page {url}', file=sys.stderr)
         return
-    scrap_imgs_from_page(req, root)
+    scrap_request(req, root)
     if l >= recursion_level:
         return
     links = BeautifulSoup(req.text, 'lxml').find_all('a')
@@ -118,7 +132,10 @@ def main() -> int:
         except:
             print('Could not create dest. directory', sys.stderr)
             return 1
+    t_start = time.perf_counter()
     petition_layer(url, 0)
+    t_end = time.perf_counter()
+    print(f'Scraping took {t_end - t_start} s')
 
 if __name__ == "__main__":
     sys.exit(main())
