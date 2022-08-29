@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 import sys, argparse
-from exif import Image
+from PIL import Image
 from os.path import splitext
 
 allowed_ext = ['.jpg','.jpeg','.png','.gif','.bmp']
@@ -25,10 +25,12 @@ def main() -> str:
                             print(str(e))
                             continue
                     else:
-                        print(f'file {file} has no EXIF present')
+                        print(f'[!!] file {file} has no EXIF metadata present')
             except:
                 print(f'Could not open file {file} for reading')
                 continue
+        else:
+            print(f'[!!] format not allowed in file {file}')
 
 if __name__ == "__main__":
     sys.exit(main())

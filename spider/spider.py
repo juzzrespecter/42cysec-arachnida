@@ -45,8 +45,9 @@ def generate_url(url: str, domain: str) -> str:
     return url
 
 def img_name_generator(img_url: str) -> str:
-    name = basename(img_url)
-    name_s = splitext(name)
+    img_path = urlparse(img_url).path
+    img_name = basename(img_path)
+    name_s = splitext(img_name)
     for ext in allowed_ext:
         if ext == name_s[1]:
             new_name = name_s[0]
@@ -55,7 +56,7 @@ def img_name_generator(img_url: str) -> str:
                 new_name = name_s[0] + '_' + str(i)
                 i += 1
             if i == 1000:
-                raise Exception('too many files with name ' + name)
+                raise Exception('too many files with name ' + img_name)
             return download_path + new_name + name_s[1]
     raise Exception('Not valid ext.: ' + name_s[1])
 
@@ -79,7 +80,6 @@ def request_img(img: str, root: str):
         print('No space left on device', sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(e)
         sys.exit(1)
 
 def scrap_request(req: Request, root: str):
