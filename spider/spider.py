@@ -23,9 +23,12 @@ def parse_args() -> str:
     args = parser.parse_args()
 
     global recursion_level, download_path
-    recursion_level = 1
+    recursion_level = 0
     if args.r:
         recursion_level = args.l
+    if recursion_level < 0:
+        print(f'{recursion_level} is an invalid recursion level, exiting...', file=sys.stderr)
+        sys.exit(1)
     download_path = args.p[0]
     if download_path[-1] != '/':
         download_path += '/'
@@ -94,14 +97,14 @@ def scrap_request(req: Request, root: str):
         
 def petition_layer(url: str, l: int):
     l += 1
-    print(f'Scrapping url {url} [ recursion level {str(l)} ]')
+    print(f'Scrapping url {url} [ RL {str(l)} ]')
     p = urlparse(url)
     root = p.scheme + "://" + p.hostname
     try:
         url_log.add(url)
         req = requests.get(url, verify=True, timeout=5)
     except Exception:
-        print(f'Failed to request page {url}', file=sys.stderr)
+        print(f'[!!] Failed to request page {url}', file=sys.stderr)
         return
     scrap_request(req, root)
     if l >= recursion_level:
@@ -133,7 +136,7 @@ def main() -> int:
             print('Could not create dest. directory', sys.stderr)
             return 1
     t_start = time.perf_counter()
-    petition_layer(url, 0)
+    petition_layer(url, -1) # asdasd
     t_end = time.perf_counter()
     print(f'Scraping took {t_end - t_start} s')
 
