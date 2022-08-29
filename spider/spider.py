@@ -32,7 +32,6 @@ def parse_args() -> str:
     download_path = args.p[0]
     if download_path[-1] != '/':
         download_path += '/'
-    print(download_path)
     url = args.URL
     if url[-1] == '/':
         url = url[:-1]
@@ -136,7 +135,7 @@ def main() -> int:
             print('Could not create dest. directory', sys.stderr)
             return 1
     t_start = time.perf_counter()
-    petition_layer(url, -1) # asdasd
+    petition_layer(url, -1)
     t_end = time.perf_counter()
     print(f'Scraping took {t_end - t_start} s')
 
